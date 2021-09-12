@@ -14,7 +14,7 @@ export default class Posts {
   }
 
   init() {
-    const data$ = interval(5000).pipe(
+    const data$ = interval(3000).pipe(
       switchMap(() => ajax(this.serverPosts).pipe(
         map((result) => result.response),
         catchError(() => of({ timestamp: new Date().toLocaleString('ru'), posts: [] })),
