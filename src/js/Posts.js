@@ -8,28 +8,40 @@ import {
 
 export default class Posts {
   constructor() {
-    this.server = 'https://t2hw11.herokuapp.com/';
+    this.server = 'https://t2hw11.herokuapp.com';
     this.serverPosts = 'https://t2hw11.herokuapp.com/posts/latest';
+    // this.server = 'http://localhost:7070';
+    // this.serverPosts = 'http://localhost:7070/posts/latest';
     this.posts = document.querySelector('.posts__list');
   }
 
   init() {
-    const data$ = interval(3000).pipe(
+    interval(3000).pipe(
       switchMap(() => ajax(this.serverPosts).pipe(
         map((result) => result.response),
         catchError(() => of({ timestamp: new Date().toLocaleString('ru'), posts: [] })),
       )),
-    );
+      switchMap((result) => {
+        const receivedData = result || { timestamp: new Date().toLocaleString('ru'), posts: [] };
+        receivedData.forEach((item) => {
+          this.getComments(item);
+        });
+        return receivedData;
+      }),
+    ).subscribe(() => {
 
-    data$.subscribe((result) => {
-      const receivedData = result || { timestamp: new Date().toLocaleString('ru'), posts: [] };
-      receivedData.forEach((item) => {
-        this.getComments(item);
-      });
     });
   }
+  //   data$.subscribe((result) => {
+  //     const receivedData = result || { timestamp: new Date().toLocaleString('ru'), posts: [] };
+  //     receivedData.forEach((item) => {
+  //       this.getComments(item);
+  //     });
+  //   });
+  // }
 
   getComments(post) {
+    // console.log(post);
     const postWithComment = post;
     const { id } = postWithComment;
     const serverComments = `${this.server}/posts/${id}/comments/latest`;
