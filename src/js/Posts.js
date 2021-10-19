@@ -1,6 +1,6 @@
 import { ajax } from 'rxjs/ajax';
 import {
-  interval, of,
+  interval, of, zip
 } from 'rxjs';
 import {
   map, catchError, switchMap,
@@ -8,52 +8,32 @@ import {
 
 export default class Posts {
   constructor() {
-    this.server = 'https://t2hw11.herokuapp.com';
     this.serverPosts = 'https://t2hw11.herokuapp.com/posts/latest';
-    // this.server = 'http://localhost:7070';
-    // this.serverPosts = 'http://localhost:7070/posts/latest';
     this.posts = document.querySelector('.posts__list');
   }
 
-  init() {
-    interval(3000).pipe(
-      switchMap(() => ajax(this.serverPosts).pipe(
-        map((result) => result.response),
-        catchError(() => of({ timestamp: new Date().toLocaleString('ru'), posts: [] })),
+getPostsWithComments() {
+  interval(3000).pipe(
+    switchMap(() => ajax.getJSON(this.serverPosts)
+      .pipe(
+        catchError(() => of([])),
+        map((data) => data),
+        switchMap((posts) => zip(...posts.map(
+          (post) => ajax.getJSON(`https://t2hw11.herokuapp.com/posts/${post.id}/comments/latest`)
+            .pipe(
+              catchError(() => of([])),
+              map((data) => data),
+              map((comments) => ({ ...post, comments })),
+            ),
+        ))),
       )),
-      switchMap((result) => {
-        const receivedData = result || { timestamp: new Date().toLocaleString('ru'), posts: [] };
-        receivedData.forEach((item) => {
-          this.getComments(item);
-        });
-        return receivedData;
-      }),
-    ).subscribe(() => {
-
-    });
-  }
-  //   data$.subscribe((result) => {
-  //     const receivedData = result || { timestamp: new Date().toLocaleString('ru'), posts: [] };
-  //     receivedData.forEach((item) => {
-  //       this.getComments(item);
-  //     });
-  //   });
-  // }
-
-  getComments(post) {
-    // console.log(post);
-    const postWithComment = post;
-    const { id } = postWithComment;
-    const serverComments = `${this.server}/posts/${id}/comments/latest`;
-    ajax(serverComments).pipe(
-      map((result) => result.response),
-      catchError(() => of({ timestamp: new Date().toLocaleString('ru'), comments: [] })),
-    ).subscribe((resultComment) => {
-      const receivedDataComment = resultComment || { timestamp: new Date().toLocaleString('ru'), comments: [] };
-      postWithComment.comments = receivedDataComment;
-      this.posts.prepend(this.renderPost(postWithComment));
-    });
-  }
+  ).subscribe((posts) => {
+    posts.forEach((item) => {
+      const post = this.renderPost(item);
+      this.posts.insertAdjacentElement('beforeend', post);
+  });
+})
+}
 
   renderPost(post) {
     this.post = document.createElement('li');
@@ -85,7 +65,7 @@ export default class Posts {
       });
       this.post.insertAdjacentElement('beforeend', commentsBox);
     }
-
     return this.post;
   }
+
 }
